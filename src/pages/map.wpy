@@ -1,0 +1,450 @@
+<style lang="less">
+.container {
+    display: block;
+    height: 100%;
+    overflow: hidden;
+    .top-left {
+        position: absolute;
+        z-index: 99;
+        top: 32px;
+        left: 20rpx;
+        display: block;
+        width: 150rpx;
+        height: 60rpx;
+        .campus {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 50rpx;
+            text-align: center;
+            font-size: 28rpx;
+            line-height: 60rpx;
+            color: #fff;
+            background-color: rgba(122, 122, 122, 0.3);
+        }
+    }
+    .tabbar {
+        position: absolute;
+        bottom: 0;
+        z-index: 99;
+        // display: flex;
+        width: 100%;
+        height: 90rpx;
+        background-color: #1e9fff;
+        .tabbar-content {
+            // flex: 1;
+            width: 100%;
+            .scroll {
+                box-sizing: border-box;
+                width: 100%;
+                height: 90rpx;
+                padding: 20rpx 0 0 0;
+                display: inline-block;
+                position: relative;
+                white-space: nowrap;
+            }
+        }
+        .tabbar-button {
+            width: 80px;
+            background-color: #1e9fff;
+        }
+    }
+    .placetype {
+        display: inline-block;
+        font-size: 28rpx;
+        outline: none;
+        padding: 0 15rpx 0 30rpx;
+        color: #fff;
+        background:transparent;
+        .placetype-text{
+            line-height: 30rpx;
+            padding: 0 0 20rpx 0;
+        }
+        .selected {
+            font-size: 32rpx;
+            border-bottom: 4rpx solid #fff;
+        }
+    }
+    .map_container{
+        position: absolute;
+        top: 0;
+        bottom: 170rpx;
+        left: 0;
+        right: 0;
+    }
+    .map {
+        width: 100%;
+        height: 100%;
+    }
+    .bot {
+        position: absolute;
+        bottom: -510rpx;
+        width: 100%;
+        height: 680rpx;
+        left: 0;
+        transition: transform .6s ease;
+        &.show {
+            transform: translate3d(0, -610rpx, 0);
+        }
+        .bot-scroll-toggle {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 80rpx;
+            line-height: 100rpx;
+            color: #1e9fff;
+            text-align: center;
+            background-color: #fff;
+            border-bottom: 1rpx solid rgb(233, 233, 233);
+            box-shadow: 0 2rpx 4rpx 0 rgba(33, 33, 33, 0.3);
+            .up, .down {
+                display: inline-block;
+                width: 40rpx;
+                height: 40rpx;
+            }
+        }
+        .bot-list-group {
+            height: 600rpx;
+            background-color: #fff;
+            // color: #1e9fff;
+            .bot-list {
+                position: relative;
+                display: flex;
+                align-items: center;
+                padding: 30rpx 60rpx;
+                border-bottom: 1rpx solid #f0f0f0;
+                // .bot-list-font {
+
+                // }
+                .boot-list-navigation {
+                    position: absolute;
+                    top: 30rpx;
+                    right: 60rpx;
+                    display: block;
+                    width: 40rpx;
+                    height: 40rpx;
+                    background-color: #1e9fff;
+                    border-radius: 50%;
+                    text-align: right;
+                }
+            }
+        }
+    }
+}
+
+
+</style>
+<template>
+    <view class="container">
+        <view bindtap="changeCampus" class="top-left">
+            <view class="campus">{{campus_name}}</view>
+        </view>
+        <view class="tabbar">
+            <view class="tabbar-content">
+                <scroll-view class="scroll" scroll-x="true">
+                    <view class="placetype" data-index="{{idx}}" data-campus-id="{{type.campus_id}}" data-id="{{type.id}}" bindtap="tab" wx:for="{{placetype}}" wx:for-index="idx" wx:key="id" wx:for-item="type">
+                        <text class="placetype-text {{type.is_current}}">{{type.name}}{{item.id}}</text>
+                    </view>
+                </scroll-view>
+            </view>
+        </view>
+
+        <view class="map_container">
+            <map class="map" id="map" longitude="{{longitude}}" latitude="{{latitude}}" scale="{{scale}}" show-location="{{showLocation}}" markers="{{buildings}}" controls="{{controls}}" bindcontroltap="controltap" bindmarkertap="markertap" bindcallouttap="markertap" bindlabeltap="markertap"></map>
+        </view>
+
+        <view class="{{bot_scroll_show ? 'bot show' : 'bot'}}">
+            <view class="bot-scroll-toggle" bindtap="botScrollToggle">共有 {{buildings.length}} 个地点 <image class="down" src="../resources/down.png" wx:if="{{bot_scroll_show}}"></image><image class="up" src="../resources/up.png" wx:if="{{!bot_scroll_show}}"></image></view>
+            <!-- <scroll-view scroll-y="true" style="height: {{bot_scroll_height}} " scroll-into-view="list-{{toView}}"> -->
+            <scroll-view class="bot-list-group" scroll-y="true" wx:if="bot_scroll_show">
+                <view class="bot-list" bindtap="selectMarker" data-index="{{index}}" id="list-{{item.id}}" data-id="{{item.id}}" wx:for="{{buildings}}" wx:key="id">
+                    <view class="bot-list-font">{{item.name}}</view>
+                    <image class="boot-list-navigation" catchtap="navigation" data-index="{{index}}" src="../resources/navigation.png"></image>
+                </view>
+            </scroll-view>
+        </view>
+    </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import api from '../api/api'
+import tip from '../utils/tip'
+
+export default class Map extends wepy.page {
+    //页面配置
+    config = {
+        "navigationBarTitleText": "鲁大地图导览",
+        "navigationBarBackgroundColor": "#1e9fff",
+        "navigationBarTextStyle": "white"
+    };
+
+    async dataInit() {
+        let that = this
+
+        let json = await api.getCampuses()
+        that.campuses = json.data.data
+        // that.campus_id = that.campuses[0]['id']
+        if (that.campuses.length === 0) {
+            return
+        }
+        json = await api.getPlacetype({
+            query: {
+                campus_id: that.campus_id
+            }
+        })
+        that.placetype = json.data.data
+        that.placetype[0].is_current = 'selected'
+
+        if (that.placetype.length === 0) {
+            return
+        }
+        json = await api.getBuildings({
+            query: {
+                campus_id: that.campus_id,
+                pt_id: that.placetype[0]['id']
+            }
+        })
+        that.buildings = json.data.data
+        that.setIconPath()
+        that.$apply()
+    }
+
+    async changeTab(campus_id, pt_id) {
+        let that = this
+        let json = {}
+        json = await api.getBuildings({
+            query: {
+                campus_id: campus_id,
+                pt_id: pt_id
+            }
+        })
+        that.buildings = json.data.data
+        that.lastIndex = null
+        that.setIconPath()
+        that.$apply()
+    }
+
+    setIconPath() {
+        let buildings = this.buildings
+        let x
+        for (x in buildings) {
+            buildings[x].iconPath = '../resources/marker.png'
+            buildings[x].iconPathSelected = '../resources/marker-selected.png'
+            buildings[x].width = 1
+            buildings[x].height = 1
+            // buildings[x].alpha = 0.1
+            buildings[x].callout = {
+                content: buildings[x].name,
+                bgColor: '#1e9fff',
+                padding: 5,
+                color: '#fff',
+                fontSize: 14,
+                borderWidth: 1,
+                borderColor: '#1e9fff',
+                borderRadius: 5,
+                display: 'ALWAYS'
+            }
+            // buildings[x].label = {
+            //     content: buildings[x].name,
+            //     bgColor: '#fff',
+            //     fontSize: 10,
+            //     padding: 1,
+            //     borderWidth: .5,
+            //     borderColor: '#1e9fff',
+            //     borderRadius: 2
+            // }
+        }
+        this.buildings = buildings
+    }
+
+
+
+    systemInit() {
+        let that = this
+        wx.getSystemInfo({
+            success: function(res) {
+                that.controls = [
+                    {
+                        id: 0,
+                        iconPath: '../resources/controls-top.png',
+                        position: {
+                            left: res.windowWidth - 50,
+                            top: res.windowHeight - 260,
+                            width: 40,
+                            height: 40
+                        },
+                        clickable: true
+                    },
+                    {
+                        id: 1,
+                        iconPath: '../resources/controls-bot.png',
+                        position: {
+                            left: res.windowWidth - 50,
+                            top: res.windowHeight - 220,
+                            width: 40,
+                            height: 40
+                        },
+                        clickable: true
+                    },
+                ]
+            }
+        })
+    }
+
+    onLoad() {
+        this.dataInit()
+        this.systemInit()
+    }
+    methods = {
+        changeCampus() {
+            if (this.campus_id == 1) {
+                this.campus_id = this.campuses[1]['id']
+                this.longitude = '121.373897'
+                this.latitude = '37.520004'
+                this.campus_name = '东校区'
+                this.scale = '17'
+            } else if (this.campus_id == 3) {
+                this.campus_id = this.campus_id = this.campuses[0]['id']
+                this.longitude = '121.357358'
+                this.latitude = '37.521891'
+                this.campus_name = '主校区'
+                this.scale = '15'
+            }
+            this.lastIndex = null
+            this.onLoad()
+        },
+        tab(e) {
+            console.log(e.currentTarget.dataset)
+
+            let index = e.currentTarget.dataset.index
+            let pt_id = e.currentTarget.dataset.id
+            let campus_id = e.currentTarget.dataset.campusId
+            delete this.placetype[this.currentTab].is_current
+            this.placetype[index].is_current = 'selected'
+            this.currentTab = index
+            this.changeTab(campus_id, pt_id)
+        },
+        botScrollToggle(e) {
+            console.log(e)
+            this.bot_scroll_show = !this.bot_scroll_show
+            this.$apply()
+        },
+        buildingDetail(e) {
+            wx.navigateTo({
+                url: 'building?building_id=' + e.currentTarget.dataset.id
+            })
+        },
+        controltap(e) {
+            let that = this
+            if (e.controlId === 0) {
+                wx.navigateTo({
+                    url: 'search'
+                })
+            }else {
+                that.showLocation = true
+                wx.getLocation({
+                    type: 'gcj02',
+                    success: function(res) {
+                        that.latitude = res.latitude
+                        that.longitude = res.longitude
+                        that.$apply()
+                    }
+                })
+            }
+        },
+        selectMarker(e) {
+            console.log(e)
+            let index = e.currentTarget.dataset.index
+            let building = this.buildings[index]
+            this.latitude = building.latitude
+            this.longitude = building.longitude
+            if (this.lastIndex || this.lastIndex === 0) {
+                this.buildings[this.lastIndex].callout.fontSize = 14
+                this.buildings[this.lastIndex].callout.bgColor = '#1e9fff'
+                this.buildings[this.lastIndex].callout.borderColor = '#1e9fff'
+                this.buildings[this.lastIndex].width = 1
+                this.buildings[this.lastIndex].height = 1
+                this.buildings[this.lastIndex].label = {content: ' ', width: 1, height: 1}
+            }
+            this.lastIndex = index
+            building.callout.fontSize = 18
+            building.callout.bgColor = '#07c160'
+            building.callout.borderColor = '#07c160'
+            building.label = {
+                content: '再次点击导航至此处',
+                fontSize: 12,
+            }
+            this.bot_scroll_show = false
+
+        },
+        markertap(e) {
+            this.toView = e.markerId
+            let id = e.markerId
+            let building;
+            let index;
+            for (let i = 0; i < this.buildings.length; i ++) {
+                if (id == this.buildings[i].id) {
+                    building = this.buildings[i]
+                    index = i
+                    break
+                }
+            }
+            if (this.lastIndex == index) {
+                wx.navigateTo({
+                    url: 'navigation?name=' + building.name + '&latitude=' + building.latitude + '&longitude=' + building.longitude
+                })
+            } else {
+                if (this.lastIndex || this.lastIndex === 0) {
+                    this.buildings[this.lastIndex].callout.fontSize = 14
+                    this.buildings[this.lastIndex].callout.bgColor = '#1e9fff'
+                    this.buildings[this.lastIndex].callout.borderColor = '#1e9fff'
+                    this.buildings[this.lastIndex].width = 1
+                    this.buildings[this.lastIndex].height = 1
+                    this.buildings[this.lastIndex].label = {content: ' ', width: 1, height: 1}
+                }
+                this.lastIndex = index
+                building.callout.fontSize = 18
+                building.callout.bgColor = '#07c160'
+                building.callout.borderColor = '#07c160'
+                building.label = {
+                    content: '再次点击导航至此处',
+                    fontSize: 10,
+                }
+                this.bot_scroll_show = false
+            }
+
+        },
+        navigation(e) {
+            let index = e.currentTarget.dataset.index
+            let building = this.buildings[index]
+            wx.navigateTo({
+                url: 'navigation?name=' + building.name + '&latitude=' + building.latitude + '&longitude=' + building.longitude
+            })
+        }
+    }
+
+
+    data = {
+        message: 'Hello World',
+        campuses: [],
+        placetype: [],
+        buildings: [],
+        currentTab: 0,
+        scale: 15,
+        lastIndex: null,
+        list: [{name: 'firstname'}, {name: 'secondname'}],
+        campus_id: 1,
+        campus_name: "主校区",
+        latitude: '37.521891',
+        longitude: '121.357358',
+        controls: [],
+        bot_scroll_show: false,
+        toView: '',
+        showLocation: false,
+
+    };
+
+}
+</script>

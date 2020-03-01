@@ -1,0 +1,242 @@
+<style lang="less">
+    .top-left {
+      position: absolute;
+      z-index: 99;
+      top: 32px;
+      left: 20rpx;
+      display: block;
+      width: 150rpx;
+      height: 60rpx;
+      .back {
+          display: block;
+          width: 100%;
+          height: 100%;
+          border-radius: 50rpx;
+          text-align: center;
+          font-size: 28rpx;
+          line-height: 60rpx;
+          color: #fff;
+          background-color: rgba(122, 122, 122, 0.3);
+      }
+    }
+
+    .map_container{
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 100%;
+    }
+    .map {
+        width: 100%;
+        height: 100%;
+    }
+</style>
+<template>
+    <view class="container">
+        <view bindtap="goback" class="top-left">
+          <view class="back">返回</view>
+        </view>
+        <view class="map_container">
+            <map class="map" id="map" longitude="{{longitude}}" include-points="{{points}}" latitude="{{latitude}}" markers="{{markers}}" scale="18" polyline="{{polyline}}" show-location="true" controls="{{controls}}" bindcontroltap="controltap" bindmarkertap="markertap"></map>
+        </view>
+    </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import api from '../api/api'
+import tip from '../utils/tip'
+import amap from '../libs/amap-wx.js'
+
+export default class Navigation extends wepy.page {
+    //页面配置
+    config = {
+        "navigationBarTitleText": "加载中...",
+        "navigationBarBackgroundColor": "#1296db",
+        "navigationBarTextStyle": "white"
+    }
+
+    systemInit() {
+        let that = this
+        wx.getLocation({
+            type: 'gcj02',
+            success: function(res) {
+                that.latitude = res.latitude
+                that.longitude = res.longitude
+                that.routeInit(res.latitude, res.longitude)
+                that.points = [
+                    {
+                        latitude: that.to_latitude,
+                        longitude: that.to_longitude
+                    },
+                    {
+                        latitude: that.latitude,
+                        longitude: that.longitude
+                    }
+                ]
+                that.$apply()
+            }
+        })
+        wx.getSystemInfo({
+            success: function(res) {
+                that.windowWidth = res.windowWidth,
+                that.windowHeight = res.windowHeight,
+                that.controls = [
+                    {
+                         id: 0,
+                         iconPath: '../resources/controls-top.png',
+                         position: {
+                            left: res.windowWidth - 50,
+                            top: res.windowHeight - 100,
+                            width: 40,
+                            height: 40
+                         },
+                         clickable: true
+                    },
+                    {
+                         id: 1,
+                         iconPath: '../resources/controls-bot.png',
+                         position: {
+                            left: res.windowWidth - 50,
+                            top: res.windowHeight - 60,
+                            width: 40,
+                            height: 40
+                         },
+                         clickable: true
+                    },
+                ]
+            }
+        })
+    }
+
+    dataInit(options) {
+        let that = this
+        console.log(options)
+        that.name = options.name
+        that.to_latitude = options.latitude
+        that.to_longitude = options.longitude
+        that.markers[0] = {
+            iconPath: "../resources/marker.png",
+            id: 0,
+            latitude: options.latitude,
+            longitude: options.longitude,
+            width: 22,
+            height: 22
+        }
+        wx.setNavigationBarTitle({
+            title: that.name
+        })
+        that.systemInit()
+    }
+
+    routeInit(latitude, longitude) {
+        let that = this
+        let myAmapFun = new amap.AMapWX({key:'a4859fdbc92eff5cad5321ef0ea9db40'});
+        myAmapFun.getWalkingRoute({
+            origin: longitude + ',' + latitude,
+            destination: that.to_longitude + ',' + that.to_latitude,
+            success: function(data){
+                console.log(data)
+                if (data.paths[0].distance > 20000) {
+                    wx.showModal({
+                        title: '提示',
+                        content: '距离过远',
+                        showCancel: false,
+                        success: function(res) {
+                            wx.navigateBack({
+                                delta: 1
+                            })
+                        }
+                    })
+                }
+                var points = [];
+                if(data.paths && data.paths[0] && data.paths[0].steps){
+                    var steps = data.paths[0].steps;
+                    for(var i = 0; i < steps.length; i++){
+                        var poLen = steps[i].polyline.split(';');
+                        for(var j = 0;j < poLen.length; j++){
+                            points.push({
+                                longitude: parseFloat(poLen[j].split(',')[0]),
+                                latitude: parseFloat(poLen[j].split(',')[1])
+                            })
+                        }
+                    }
+                }
+                that.polyline = [{
+                    points: points,
+                    color: "#0091ff",
+                    width: 3
+                }]
+                that.$apply()
+
+            },
+            fail: function(info){
+                console.log(info)
+            }
+        })
+    }
+
+    // computed = {
+    //     points() {
+    //         return [
+    //             {
+    //                 latitude: this.to_latitude,
+    //                 longitude: this.to_longitude
+    //             },
+    //             {
+    //                 latitude: this.latitude,
+    //                 longitude: this.longitude
+    //             }
+    //         ]
+    //     }
+    // }
+
+    methods = {
+        controltap(e) {
+            let that = this
+            if (e.controlId === 0) {
+                wx.navigateTo({
+                    url: 'search'
+                })
+            }else {
+                that.showLocation = true
+                wx.getLocation({
+                    type: 'gcj02',
+                    success: function(res) {
+                        that.latitude = res.latitude
+                        that.longitude = res.longitude
+                        that.points = []
+                        that.$apply()
+                    }
+                })
+            }
+        },
+        goback() {
+          wx.navigateBack()
+        }
+    }
+
+
+    onLoad(options) {
+        this.dataInit(options)
+    }
+
+    data = {
+        message: 'Hello World',
+        name: '',
+        latitude: '',
+        longitude: '',
+        to_latitude: '',
+        to_longitude: '',
+        controls: [],
+        windowWidth: '',
+        windowHeight: '',
+        polyline: [],
+        markers: [],
+        points: [],
+    }
+}
+</script>

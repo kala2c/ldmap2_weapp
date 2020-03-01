@@ -1,0 +1,208 @@
+<style lang="less">
+    .top-left {
+        position: absolute;
+        z-index: 99;
+        top: 32px;
+        left: 20rpx;
+        display: block;
+        width: 150rpx;
+        height: 60rpx;
+        .back {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 50rpx;
+            text-align: center;
+            font-size: 28rpx;
+            line-height: 60rpx;
+            color: #fff;
+            background-color: rgba(122, 122, 122, 0.3);
+        }
+    }
+    .search-container {
+        position: absolute;
+        top: 120rpx;
+        width: 92%;
+        height: 70rpx;
+        margin: 30rpx auto 0 auto;
+        background-color: #F0F0F0;
+        border-radius: 35rpx;
+    }
+    .search-input {
+        display: inline-block;
+        height: 30rpx;
+        margin: 15rpx 0 0 20rpx;
+        float: left;
+        font-size: 28rpx;
+        line-height: 30rpx;
+    }
+    .search-icon {
+        display: inline-block;
+        float: left;
+        margin: 18rpx 0 0 20rpx;
+        width: 34rpx;
+        height: 34rpx;
+    }
+    .empty {
+        margin-top: 300rpx;
+
+    }
+    .empty-icon {
+        display: block;
+        width: 120rpx;
+        height: 120rpx;
+        margin: 0 auto 0 auto;
+
+    }
+    .empty-text {
+        margin: 20rpx 0 0 0;
+        font-size: 28rpx;
+        text-align: center;
+        color: #bfbfbf;
+
+    }
+    .buildings-list {
+        width: 100%;
+        position: absolute;
+        top: 200rpx;
+    }
+    .building {
+        height: 160rpx;
+        box-sizing: border-box;
+        margin-left: 40rpx;
+        margin-right: 40rpx;
+        padding: 25rpx 0 25rpx 0;
+    }
+    .bot-list-font {
+        display: inline-block;
+        float: left;
+        font-size: 32rpx;
+        line-height: 110rpx;
+        margin-left: 40rpx;
+    }
+    .boot-list-navigation {
+        float: right;
+        width: 40rpx;
+        height: 40rpx;
+        margin-top: 30rpx;
+        padding: 10rpx;
+        background-color: #1296db;
+        border-radius: 30rpx;
+    }
+    .bot-text {
+        color: #8a8a8a;
+        font-size: 28rpx;
+        text-align: center;
+        margin: 20rpx 0 0 0;
+    }
+</style>
+<template>
+    <view class="container">
+        <view bindtap="goback" class="top-left">
+            <view class="back">返回</view>
+        </view>
+        <view class="search-container">
+            <image class="search-icon" src="../resources/search.png"></image>
+            <input class="search-input" confirm-type="search" placeholder="输入搜索关键词" auto-focus bindconfirm="search"/>
+        </view>
+
+        <view class="buildings-list">
+            <view class="building" bindtap="buildingDetail" data-index="{{index}}" data-id="{{item.id}}" wx:for="{{buildings}}" wx:key="*this">
+                <view class="bot-list-font">{{item.name}}</view>
+                <image class="boot-list-navigation" data-index="{{index}}" catchtap="navigation" src="../resources/navigation.png"></image>
+            </view>
+            <view class="bot-text" wx:if="{{buildings.length}}">没有更多了</view>
+            <view class="empty" wx:if="{{empty}}">
+                <image class="empty-icon" src="../resources/search-cdcdcd.png"></image>
+                <view class="empty-text">没有搜索到相关地点</view>
+            </view>
+        </view>
+
+    </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import api from '../api/api'
+import tip from '../utils/tip'
+//import Navigation from '../components/navigation'
+
+export default class Search extends wepy.page {
+    //页面配置
+    config = {
+        "navigationBarTitleText": "鲁东大学",
+        "navigationBarBackgroundColor": "#1296db",
+        "navigationBarTextStyle": "white"
+    }
+    //components = {
+    //    navigation: Navigation
+    //}
+    async search(keywords) {
+        let that = this
+        let json = {}
+
+        json = await api.searchBuildings({
+            query: {
+                keywords: keywords
+            }
+        })
+        console.log(json)
+            console.log('daa', that.buildings)
+        if (json.data.code == 200) {
+            that.buildings = json.data.data
+            if (that.buildings.length > 0) {
+                that.empty = false
+            } else {
+                that.empty = true
+            }
+        }
+
+        console.log(that.buildings)
+        that.$apply()
+    }
+
+    methods = {
+        search(e) {
+            console.log(e)
+            console.log(e.detail.value)
+
+            if (e.detail.value.length === 0) {
+                wx.showToast({
+                    title: '内容不能为空',
+                    icon: 'none',
+                    duration: 1000
+                })
+                return
+            }
+            this.search(e.detail.value)
+
+        },
+        buildingDetail(e) {
+            let index = e.currentTarget.dataset.index
+            let building = this.buildings[index]
+            wx.navigateTo({
+                url: 'navigation?name=' + building.name + '&latitude=' + building.latitude + '&longitude=' + building.longitude
+            })
+            // wx.navigateTo({
+            //     url: 'building?building_id=' + e.currentTarget.dataset.id
+            // })
+        },
+        navigation(e) {
+            let index = e.currentTarget.dataset.index
+            let building = this.buildings[index]
+            wx.navigateTo({
+                url: 'navigation?name=' + building.name + '&latitude=' + building.latitude + '&longitude=' + building.longitude
+            })
+        },
+        goback() {
+            wx.navigateBack()
+        }
+    }
+
+    data = {
+        message: 'Hello World',
+        buildings: [],
+        empty: false,
+    }
+}
+</script>

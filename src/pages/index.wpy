@@ -1,0 +1,38 @@
+<style lang="less">
+    .button {
+        width: 140rpx;
+        height: 140rpx;
+        margin-top: 45%;
+        padding-top: 30rpx;
+        border-radius: 70rpx;
+        background-color: #1296db;
+        color: #fff;
+        text-align: center;
+        box-sizing: border-box;
+        font-size: 32rpx;
+
+    }
+</style>
+<template>
+    <view class="container">
+        <view class="button">
+            <text>校园\n导览</text>
+            
+        </view>
+    </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+
+export default class Index extends wepy.page {
+    //页面配置
+    config = {
+        "navigationBarTitleText": "全部功能"
+    };
+
+    data = {
+        message: 'Hello World'
+    };
+}
+</script>
